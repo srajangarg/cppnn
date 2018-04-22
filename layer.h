@@ -2,7 +2,7 @@
 
 class Layer
 {
-
+public:
     virtual void initialize() = 0;
     virtual void forward() = 0;
 
@@ -10,24 +10,61 @@ class Layer
 
     float *in_matrix;
     float *out_matrix;
-    uint out_size;
-    uint in_size;
+    int outputs;
+    int inputs;
+
+    virtual ~Layer()
+    {
+        delete[] out_matrix;
+    }
 };
 
 class Dense : public Layer
 {
 
-	float * wt_matrix; // in_matrix x wt_matrix = out_matrix
+public:
+    float *wt_matrix;
 
-	Dense(uint nodes)
-	{
-		out_size = nodes;
-	}
+    Dense(int outs)
+    {
+        outputs = outs;
+        out_matrix = new float[outs];
+    }
 
-	void initialize()
-	{
-		// allocate & initialize wt_matrix
-	}
+    void initialize()
+    {
+        wt_matrix = new float[inputs * outputs];
+        // initialize wt_matrix
+    }
 
+    void forward()
+    {
+        // in_matrix x wt_matrix = out_matrix
+    }
 
-}
+    ~Dense()
+    {
+        delete[] wt_matrix;
+    }
+};
+
+class Input : public Layer
+{
+public:
+    Input(int outs)
+    {
+        inputs = -1;
+        outputs = outs;
+        out_matrix = new float[outs];
+    }
+
+    void initialize()
+    {
+        // nothing to be done
+    }
+
+    void forward()
+    {
+        // nothing to be done
+    }
+};
