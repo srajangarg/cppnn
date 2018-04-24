@@ -21,6 +21,10 @@ public:
     float **train_x, **valid_x;
     float **train_y, **valid_y;
 
+    float learning_rate;
+    std::function<float(float *, float *, int)> errf;
+    std::function<void(float *, float *, float *, int)> errb;
+
     // each data point has `inputs` number of floats
     NN(int ins)
     {
@@ -65,10 +69,15 @@ public:
         validation_data_added = true;
     }
 
-    void initialize()
+    void initialize(float lr, Errors e)
     {
         for (auto &l : layers)
             l->initialize();
+
+        learning_rate = lr;
+        errf = ef_map[e];
+        errb = eb_map[e];
+
         nn_initialized = true;
     }
 
@@ -78,6 +87,10 @@ public:
 
         for (auto &l : layers)
             l->forward();
+    }
+
+    void train(int epochs, int batch_sz)
+    {
     }
 
     void backprop()
