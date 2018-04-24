@@ -1,24 +1,28 @@
 #pragma once
 
+#include "mat.h"
+
 class Layer
 {
 public:
     virtual void initialize() = 0;
     virtual void forward() = 0;
+    virtual void update() = 0;
 
     // add more common methods and members as and when required
 
     float *in_matrix;
     float *out_matrix;
-    float *dc_do;
-    float *dc_di;
+    float *dc_dout;
+    float *dc_din;
     int outputs;
     int inputs;
 
     virtual ~Layer()
     {
+        // TODO : mostly can be reused!
         delete[] out_matrix;
-        delete[] dc_do;
+        delete[] dc_dout;
     }
 };
 
@@ -28,20 +32,24 @@ class Dense : public Layer
 public:
     float *wt_matrix; // input x output
     float *bias;      // 1 x output
-    float *dc_dwt;    // input x output
+    float *dc_dw;     // input x output
     float *dc_dbias;  // 1 x output
 
     Dense(int outs)
     {
         outputs = outs;
         out_matrix = new float[outs];
-        dc_do = new float[outputs];
+        dc_dout = new float[outs];
     }
 
     void initialize()
     {
         wt_matrix = new float[inputs * outputs];
         bias = new float[outputs];
+        // TODO initialize them both
+
+        dc_dw = new float[inputs * outputs];
+        dc_dbias = new float[outputs];
     }
 
     void forward()
@@ -54,17 +62,21 @@ public:
 
     void backprop()
     {
-        float* in_t = new float[inputs];
+        mat_mul(in_matrix, dc_dout, dc_dw, inputs, 1, outputs, true, false);
+        mat_mul(dc_dout, wt_matrix, dc_din, 1, outputs, inputs, false, true);
+        memcpy(dc_dbias, dc_dout, outputs * sizeof(float));
+    }
 
-        mat_mul();
-
-        delete in_t;
+    void update()
+    {
     }
 
     ~Dense()
     {
         delete[] wt_matrix;
-        delete[] dc_dwt;
+        delete[] bias;
+        delete[] dc_dw;
+        delete[] dc_dbias;
     }
 };
 
@@ -76,6 +88,7 @@ public:
         inputs = -1;
         outputs = outs;
         out_matrix = new float[outs];
+        dc_dout = new float[outs];
     }
 
     void initialize()
@@ -84,6 +97,11 @@ public:
     }
 
     void forward()
+    {
+        // nothing to be done
+    }
+
+    void update()
     {
         // nothing to be done
     }

@@ -25,6 +25,7 @@ public:
         f = f_map[x];
         outputs = outs;
         out_matrix = new float[outs];
+        dc_dout = new float[outs];
     }
 
     void initialize()
@@ -36,5 +37,10 @@ public:
     {
         for (int i = 0; i < outputs; i++)
             out_matrix[i] = f(in_matrix[i]);
+    }
+
+    void update()
+    {
+        // nothing to be done
     }
 };

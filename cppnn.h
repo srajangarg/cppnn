@@ -10,7 +10,6 @@ class NN
 {
 public:
     std::vector<Layer *> layers;
-    float *output;
 
     int inputs, outputs;
 
@@ -30,7 +29,6 @@ public:
     {
         inputs = ins;
         layers.push_back(new Input(ins));
-        output = layers[0]->out_matrix;
         outputs = ins;
     }
 
@@ -41,7 +39,7 @@ public:
 
         new_layer->in_matrix = prev_layer->out_matrix;
         new_layer->inputs = prev_layer->outputs;
-        output = new_layer->out_matrix;
+        new_layer->dc_din = prev_layer->dc_dout;
         outputs = new_layer->outputs;
     }
 
