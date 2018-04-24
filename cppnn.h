@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <cstring>
 #include "layer.h"
+#include "error.h"
 
 class NN
 {
@@ -15,6 +16,7 @@ public:
 
     bool training_data_added = false;
     bool validation_data_added = false;
+    bool nn_initialized = false;
 
     float **train_x, **valid_x;
     float **train_y, **valid_y;
@@ -23,8 +25,9 @@ public:
     NN(int ins)
     {
         inputs = ins;
-        add_layer(new Input(ins));
+        layers.push_back(new Input(ins));
         output = layers[0]->out_matrix;
+        outputs = ins;
     }
 
     void add_layer(Layer *new_layer)
@@ -60,6 +63,13 @@ public:
         valid_y = v_y.data();
 
         validation_data_added = true;
+    }
+
+    void initialize()
+    {
+        for (auto &l : layers)
+            l->initialize();
+        nn_initialized = true;
     }
 
     void forward(float *input_data)
