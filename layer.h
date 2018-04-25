@@ -7,7 +7,7 @@ class Layer
 public:
     virtual void initialize() = 0;
     virtual void forward() = 0;
-    virtual void update() = 0;
+    virtual void update(float lr) = 0;
     virtual void backprop() = 0;
 
     // add more common methods and members as and when required
@@ -68,12 +68,12 @@ public:
         memcpy(dc_dbias, dc_dout, outputs * sizeof(float));
     }
 
-    void update()
+    void update(float lr)
     {
         for (int i = 0; i < inputs * outputs; i++)
-            wt_matrix[i] += dc_dw[i];
+            wt_matrix[i] -= lr * dc_dw[i];
         for (int i = 0; i < outputs; i++)
-            bias[i] += dc_dbias[i];
+            bias[i] -= lr * dc_dbias[i];
     }
 
     ~Dense()
@@ -106,7 +106,7 @@ public:
         // nothing to be done
     }
 
-    void update()
+    void update(float lr)
     {
         // nothing to be done
     }

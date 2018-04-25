@@ -17,8 +17,10 @@ public:
     bool validation_data_added = false;
     bool nn_initialized = false;
 
-    float **train_x, **valid_x;
-    float **train_y, **valid_y;
+    float **train_x, **train_y;
+    int num_train;
+    float **valid_x, **valid_y;
+    int num_valid;
 
     float learning_rate;
     std::function<float(float *, float *, int)> errf;
@@ -51,6 +53,7 @@ public:
 
         train_x = t_x.data();
         train_y = t_y.data();
+        num_train = t_x.size();
 
         training_data_added = true;
     }
@@ -63,6 +66,7 @@ public:
 
         valid_x = v_x.data();
         valid_y = v_y.data();
+        num_valid = v_x.size();
 
         validation_data_added = true;
     }
@@ -88,10 +92,6 @@ public:
             l->forward();
     }
 
-    float error_prop(float *target_data)
-    {
-    }
-
     float backprop(float *target_data)
     {
         auto last_layer = layers[layers.size() - 1];
@@ -101,11 +101,11 @@ public:
 
         for (int i = layers.size() - 1; i >= 0; i--)
             layers[i]->backprop();
-        // for (auto &l : layers)
-        //     l->backprop();
+
+        return err;
     }
 
-    void train(int epochs, int batch_sz)
+    void train(int epochs)
     {
         if (not nn_initialized) {
             printf("NN not initialized\n");
@@ -115,6 +115,26 @@ public:
         if (not training_data_added) {
             printf("No training data added\n");
             return;
+        }
+
+        auto last_layer = layers[layers.size() - 1];
+
+        for (int i = 0; i < epochs; i++) {
+
+            float sum = 0;
+            for (int j = 0; j < num_train; j++) {
+                forward(train_x[j]);
+
+                // printf("predicted %.4f\n", last_layer->out_matrix[0]);
+                // printf("target %.4f\n", train_y[j][0]);
+
+                // printf("error: %.4f\n", backprop(train_y[j]));
+                sum += backprop(train_y[j]);
+
+                for (auto &l : layers)
+                    l->update(learning_rate);
+            }
+            printf("error %.4f\n", sum / num_train);
         }
     }
 

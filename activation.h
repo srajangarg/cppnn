@@ -47,7 +47,7 @@ public:
             out_matrix[i] = f(in_matrix[i]);
     }
 
-    void update()
+    void update(float lr)
     {
         // nothing to be done
     }
