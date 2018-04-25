@@ -81,18 +81,41 @@ public:
 
     void forward(float *input_data)
     {
-        memcpy(layers[0]->out_matrix, input_data, layers[0]->outputs * sizeof(float));
+        auto first_layer = layers[0];
+        memcpy(first_layer->out_matrix, input_data, first_layer->outputs * sizeof(float));
 
         for (auto &l : layers)
             l->forward();
     }
 
-    void train(int epochs, int batch_sz)
+    float error_prop(float *target_data)
     {
     }
 
-    void backprop()
+    float backprop(float *target_data)
     {
+        auto last_layer = layers[layers.size() - 1];
+
+        errb(last_layer->out_matrix, target_data, last_layer->dc_dout, outputs);
+        float err = errf(last_layer->out_matrix, target_data, outputs);
+
+        for (int i = layers.size() - 1; i >= 0; i--)
+            layers[i]->backprop();
+        // for (auto &l : layers)
+        //     l->backprop();
+    }
+
+    void train(int epochs, int batch_sz)
+    {
+        if (not nn_initialized) {
+            printf("NN not initialized\n");
+            return;
+        }
+
+        if (not training_data_added) {
+            printf("No training data added\n");
+            return;
+        }
     }
 
     ~NN()

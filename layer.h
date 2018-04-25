@@ -8,6 +8,7 @@ public:
     virtual void initialize() = 0;
     virtual void forward() = 0;
     virtual void update() = 0;
+    virtual void backprop() = 0;
 
     // add more common methods and members as and when required
 
@@ -69,6 +70,10 @@ public:
 
     void update()
     {
+        for (int i = 0; i < inputs * outputs; i++)
+            wt_matrix[i] += dc_dw[i];
+        for (int i = 0; i < outputs; i++)
+            bias[i] += dc_dbias[i];
     }
 
     ~Dense()
@@ -102,6 +107,11 @@ public:
     }
 
     void update()
+    {
+        // nothing to be done
+    }
+
+    void backprop()
     {
         // nothing to be done
     }
