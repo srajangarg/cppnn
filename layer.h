@@ -1,5 +1,6 @@
 #pragma once
 
+#include <random>
 #include "mat.h"
 
 class Layer
@@ -45,9 +46,16 @@ public:
 
     void initialize()
     {
+        std::default_random_engine generator;
+        std::normal_distribution<double> distribution(0.0, 1.0);
+
         wt_matrix = new float[inputs * outputs];
         bias = new float[outputs];
-        // TODO initialize them both
+
+        for (int i = 0; i < inputs * outputs; i++)
+            wt_matrix[i] = distribution(generator);
+        for (int i = 0; i < outputs; i++)
+            bias[i] = 0.0;
 
         dc_dw = new float[inputs * outputs];
         dc_dbias = new float[outputs];
