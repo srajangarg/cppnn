@@ -2,6 +2,7 @@
 
 #include <random>
 #include "mat.h"
+#include "mat-cuda.h"
 
 class Layer
 {

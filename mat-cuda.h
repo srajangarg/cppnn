@@ -14,7 +14,7 @@ __global__ void mat_mul_device(float *a, float *b, float *out, int *m_ptr, int *
     int k = *k_ptr;
     int n = *n_ptr;
     int r = blockIdx.x / n;
-    int c = blockIdx.x % m;
+    int c = blockIdx.x % n;
 
     int a_index = (trans_a) ? (r + threadIdx.x * m) : (r * k + threadIdx.x);
     int b_index = (trans_b) ? (c * k + threadIdx.x) : (c + threadIdx.x * n);
@@ -66,6 +66,7 @@ void mat_mul(float *a, float *b, float *out, int m, int k, int n, bool trans_a =
 
     cudaFree(dev_a);
     cudaFree(dev_b);
+    cudaFree(dev_out);
     cudaFree(dev_m);
     cudaFree(dev_k);
     cudaFree(dev_n);

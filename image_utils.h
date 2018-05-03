@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include "CImg.h"
+#include "misc.h"
 
 void copy_to_CImg(cil::CImg<float> &cimg, float *img, int H, int W, int C)
 {
@@ -52,7 +53,7 @@ void save_image(const char *fpath, float *img, int H, int W, int C)
 
 void generate_box_blur_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 {
-    float *kernel = new float[outF * kH * kW * inF];
+    alloc_vec(kernel, outF * kH * kW * inF);
     for (int of = 0; of < outF; ++of) {
         for (int i = 0; i < kH; ++i) {
             for (int j = 0; j < kW; ++j) {
@@ -61,5 +62,30 @@ void generate_box_blur_kernel(float *&kernel, int inF, int kH, int kW, int outF)
                 }
             }
         }
+    }
+}
+
+void generate_gauss_blur_kernel(float *&kernel, int inF, int kH, int kW, int outF, float sigma = 1)
+{
+    alloc_vec(kernel, outF * kH * kW * inF);
+    float kcH = kH/2.;
+    float kcW = kW/2.;
+    for (int of = 0; of < outF; ++of) {
+        float sum = 0;
+        for (int i = 0; i < kH; ++i)
+            for (int j = 0; j < kW; ++j)
+                for (int ff = 0; ff < inF; ++ff)
+                    if(of == ff) {
+                        float e = exp(-((i-kcH)*(i-kcH) + (j-kcW)*(j-kcW))/(sigma*sigma));
+                        at(kernel, outF, kH, kW, inF, of, i, j, ff) = e;
+                        sum += e;
+                    }
+                    else
+                        at(kernel, outF, kH, kW, inF, of, i, j, ff) = 0;
+
+        for (int i = 0; i < kH; ++i)
+            for (int j = 0; j < kW; ++j)
+                for (int ff = 0; ff < inF; ++ff)
+                    at(kernel, outF, kH, kW, inF, of, i, j, ff) /= sum;
     }
 }
