@@ -31,12 +31,11 @@ void func_conv2d(float *img, int inF, int H, int W, float *kernel, int outF, int
     // kernel: outF, kH, kW, inF
     // output: H-kH+1+2*padH, W-kW+1+2*padW, outF (if pad=false)
 
-
     int kH_centre = kH / 2;
     int kW_centre = kW / 2;
 
-    int outH = H-kH+1+2*padH;
-    int outW = W-kW+1+2*padW;
+    int outH = H - kH + 1 + 2 * padH;
+    int outW = W - kW + 1 + 2 * padW;
     alloc_vec(out, outH * outW * outF);
 
     for (int of = 0; of < outF; ++of) {

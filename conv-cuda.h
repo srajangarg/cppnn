@@ -60,7 +60,7 @@ __global__ void conv2d_device(float *img, int inF, int H, int W, float *kernel, 
 }
 
 void func_conv2d(float *img, int inF, int H, int W, float *kernel, int outF, int kH, int kW,
-                 float *&out, int padH=0, int padW=0)
+                 float *&out, int padH = 0, int padW = 0)
 {
     // img: H, W, inF
     // kernel: outF, kH, kW, inF
@@ -69,8 +69,8 @@ void func_conv2d(float *img, int inF, int H, int W, float *kernel, int outF, int
 
     float *dev_img, *dev_kernel, *dev_out;
 
-    int outH = H-kH+1+2*padH;
-    int outW = W-kW+1+2*padW;
+    int outH = H - kH + 1 + 2 * padH;
+    int outW = W - kW + 1 + 2 * padW;
     alloc_vec(out, outH * outW * outF);
 
     int numBlocks = outF * outH * outW;
