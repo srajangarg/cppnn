@@ -121,8 +121,15 @@ public:
             for (int j = 0; j < num_train; j++) {
                 forward(train_x[j]);
 
-                // printf("predicted %.4f\n", last_layer->out_matrix[0]);
-                // printf("target %.4f\n", train_y[j][0]);
+                // printf("predicted ");
+                // for (int i = 0; i < outputs; i++) {
+                //     printf("%f, ", last_layer->out_matrix[i]);
+                // }
+                // printf("\ntarget ");
+                // for (int i = 0; i < outputs; i++) {
+                //     printf("%f, ", train_y[j][i]);
+                // }
+                // printf("\n");
 
                 // printf("error: %.4f\n", backprop(train_y[j]));
                 sum += backprop(train_y[j]);
