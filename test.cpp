@@ -16,10 +16,10 @@ int main(int argc, char const *argv[])
     nn.add_layer(new Dense(10));
     nn.add_layer(new Activation(Activations::SIGMOID, 10));
 
-    nn.initialize(0.0001, Errors::CROSSENTROPY);
+    nn.initialize(0.01, Errors::CROSSENTROPY);
 
     std::ifstream train_file("mnist/mnist_test.csv");
-    int train_size = 100;
+    int train_size = 1000;
     // std::ifstream test_file("mnist/mnist_test.csv");
     // int test_Size = 10000;
 
@@ -56,7 +56,20 @@ int main(int argc, char const *argv[])
         }
     }
 
+    vector<float *>::const_iterator first = train_x.begin();
+    vector<float *>::const_iterator mid = train_x.begin() + (80 * train_size) / 100;
+    vector<float *>::const_iterator last = train_x.begin() + train_size;
+    vector<float *> train_x_new(first, mid);
+    vector<float *> train_x_valid(mid, last);
+
+    first = train_y.begin();
+    mid = train_y.begin() + (80 * train_size) / 100;
+    last = train_y.begin() + train_size;
+    vector<float *> train_y_new(first, mid);
+    vector<float *> train_y_valid(mid, last);
+
     nn.add_training_data(train_x, train_y);
+    nn.add_validation_data(train_x, train_y);
     nn.train(1000);
 
     for (int i = 0; i < train_size; i++) {

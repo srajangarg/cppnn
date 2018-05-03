@@ -4,8 +4,7 @@
 #include <cmath>
 #include <map>
 
-// can be made more efficient by directly placing functions
-enum class Activations { SIGMOID };
+enum class Activations { SIGMOID, LRELU };
 
 inline float sigmoid(float x)
 {
@@ -17,8 +16,26 @@ inline float sigmoid_d(float x)
     return sigmoid(x) * (1.0 - sigmoid(x));
 }
 
-std::map<Activations, std::function<float(float)>> f_map = {{Activations::SIGMOID, sigmoid}};
-std::map<Activations, std::function<float(float)>> f_d_map = {{Activations::SIGMOID, sigmoid_d}};
+inline float lrelu(float x)
+{
+    if (x > 0)
+        return x;
+    else
+        return -0.1 * x;
+}
+
+inline float lrelu_d(float x)
+{
+    if (x > 0)
+        return 1.0;
+    else
+        return -0.1;
+}
+
+std::map<Activations, std::function<float(float)>> f_map
+    = {{Activations::SIGMOID, sigmoid}, {Activations::LRELU, lrelu}};
+std::map<Activations, std::function<float(float)>> f_d_map
+    = {{Activations::SIGMOID, sigmoid_d}, {Activations::LRELU, lrelu_d}};
 
 class Activation : public Layer
 {

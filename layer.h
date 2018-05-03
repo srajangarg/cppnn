@@ -47,7 +47,7 @@ public:
     void initialize()
     {
         std::default_random_engine generator;
-        std::normal_distribution<double> distribution(0.0, 1.0);
+        std::normal_distribution<double> distribution(0.0, 0.001);
 
         wt_matrix = new float[inputs * outputs];
         bias = new float[outputs];

@@ -101,6 +101,38 @@ public:
         return err;
     }
 
+    void validate(void)
+    {
+        if (!validation_data_added) {
+            printf("No validation data set to compute accuracy!\n");
+        } else {
+            int correct_pred = 0;
+            for (int i = 0; i < num_valid; i++) {
+                int pred_index, correct_index = 0;
+                forward(valid_x[i]);
+                for (int j = 0; j < outputs; j++) {
+                    if (valid_y[i][j] == 1) {
+                        correct_index = j;
+                        break;
+                    }
+                }
+                auto pred_values = layers[layers.size() - 1]->out_matrix;
+                pred_index = 0;
+                float max_pred = pred_values[0];
+                for (int j = 0; j < outputs; j++) {
+                    if (pred_values[j] > max_pred) {
+                        max_pred = pred_values[j];
+                        pred_index = j;
+                    }
+                }
+                if (pred_index == correct_index)
+                    correct_pred++;
+            }
+            printf("Validation accuracy = %.4f\n", correct_pred * 1.0 / num_valid);
+        }
+        return;
+    }
+
     void train(int epochs)
     {
         if (not nn_initialized) {
@@ -138,6 +170,7 @@ public:
                     l->update(learning_rate);
             }
             printf("error %.4f\n", sum / num_train);
+            validate();
         }
     }
 
