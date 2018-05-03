@@ -1,5 +1,7 @@
 #pragma once
 
+#ifndef CUDA
+
 void mat_mul(float *a, float *b, float *out, int m, int k, int n, bool trans_a = false,
              bool trans_b = false)
 {
@@ -28,18 +30,4 @@ void mat_mul(float *a, float *b, float *out, int m, int k, int n, bool trans_a =
     }
 }
 
-// void mat_trans(float* inp, float* out, int m, int n)
-// {
-//     // inp: m,n
-//     // out: n,m
-//     assert(inp != NULL);
-//     assert(out != NULL);
-
-//     for (int i = 0; i < m; ++i)
-//     {
-//     	for (int j = 0; j < n; ++j)
-//     	{
-//     		out[j*m+i] = inp[i*n+j];
-//     	}
-//     }
-// }
+#endif
