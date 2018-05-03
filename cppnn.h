@@ -23,8 +23,7 @@ public:
     int num_valid;
 
     float learning_rate;
-    std::function<float(float *, float *, int)> errf;
-    std::function<void(float *, float *, float *, int)> errb;
+    std::function<float(float *, float *, float *, int)> e;
 
     // each data point has `inputs` number of floats
     NN(int ins)
@@ -71,14 +70,13 @@ public:
         validation_data_added = true;
     }
 
-    void initialize(float lr, Errors e)
+    void initialize(float lr, Errors err)
     {
         for (auto &l : layers)
             l->initialize();
 
         learning_rate = lr;
-        errf = ef_map[e];
-        errb = eb_map[e];
+        e = e_map[err];
 
         nn_initialized = true;
     }
@@ -95,9 +93,7 @@ public:
     float backprop(float *target_data)
     {
         auto last_layer = layers[layers.size() - 1];
-
-        errb(last_layer->out_matrix, target_data, last_layer->dc_dout, outputs);
-        float err = errf(last_layer->out_matrix, target_data, outputs);
+        float err = e(last_layer->out_matrix, target_data, last_layer->dc_dout, outputs);
 
         for (int i = layers.size() - 1; i >= 0; i--)
             layers[i]->backprop();
