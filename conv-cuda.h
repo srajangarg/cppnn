@@ -3,6 +3,7 @@
 #ifdef CUDA
 
 #include "misc.h"
+#include <cuda.h>
 
 __device__ __host__ inline float &at(float *f, int I, int i)
 {

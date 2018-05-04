@@ -3,20 +3,19 @@
 #include <functional>
 #include <cmath>
 #include <map>
+#include <cuda.h>
 
-enum class Activations { SIGMOID, LRELU };
-
-inline float sigmoid(float x)
+inline __host__ __device__ float sigmoid(float x)
 {
     return 1 / (1 + exp(-x));
 }
 
-inline float sigmoid_d(float x)
+inline __host__ __device__ float sigmoid_d(float x)
 {
     return sigmoid(x) * (1.0 - sigmoid(x));
 }
 
-inline float lrelu(float x)
+inline __host__ __device__ float lrelu(float x)
 {
     if (x > 0)
         return x;
@@ -24,7 +23,7 @@ inline float lrelu(float x)
         return -0.1 * x;
 }
 
-inline float lrelu_d(float x)
+inline __host__ __device__ float lrelu_d(float x)
 {
     if (x > 0)
         return 1.0;
@@ -32,25 +31,35 @@ inline float lrelu_d(float x)
         return -0.1;
 }
 
-std::map<Activations, std::function<float(float)>> f_map
-    = {{Activations::SIGMOID, sigmoid}, {Activations::LRELU, lrelu}};
-std::map<Activations, std::function<float(float)>> f_d_map
-    = {{Activations::SIGMOID, sigmoid_d}, {Activations::LRELU, lrelu_d}};
+typedef float (*pf)(float a);
+enum class Activations { SIGMOID, LRELU };
+__device__ pf f_map[2] = {sigmoid, lrelu};
+__device__ pf f_d_map[2] = {sigmoid_d, lrelu_d};
+pf f_map_host[2] = {sigmoid, lrelu};
+pf f_d_map_host[2] = {sigmoid_d, lrelu_d};
+
+__global__ activate(float*inp, float*out, int size, int a) {
+    int index = blockIdx.x*blockDim.x + threadIdx.x;
+    if(index < size)
+        out[index] = scale_vec[index]*f_map[a](inp[index]);
+}
+__global__ activate_d(float*inp, float*scale_vec, float*out, int size, int a) {
+    int index = blockIdx.x*blockDim.x + threadIdx.x;
+    if(index < size)
+        out[index] = scale_vec[index]*f_d_map[a](inp[index]);
+}
 
 class Activation : public Layer
 {
 public:
-    std::function<float(float)> f;
-    std::function<float(float)> f_d;
+    Activation act = 0;
 
     // TODO get rid of `outs` somehow
-    Activation(Activations x, int outs)
+    Activation(Activations x, int outs):act(x)
     {
-        f = f_map[x];
-        f_d = f_d_map[x];
         outputs = outs;
-        out_matrix = new float[outs];
-        dc_dout = new float[outs];
+        out_matrix = Tensor(outs);
+        dc_dout = Tensor(outs);
     }
 
     void initialize()
@@ -60,8 +69,17 @@ public:
 
     void forward()
     {
-        for (int i = 0; i < outputs; i++)
-            out_matrix[i] = f(in_matrix[i]);
+        if(is_cuda) {
+            assert(in_matrix.is_cuda);
+            assert(out_matrix.is_cuda);
+            assert(out_matrix.numel() == in_matrix.numel());
+            int num_blocks = out_matrix.numel()/THREADS_PER_BLOCK;
+            activate<<<num_blocks,THREADS_PER_BLOCK>>>(in_matrix, out_matrix, out_matrix.numel(), (int)act);
+        }
+        else {
+            for (int i = 0; i < outputs; i++)
+                out_matrix.at(i) = f_map_host[(int)act](in_matrix.at(i));
+        }
     }
 
     void update(float lr)
@@ -71,7 +89,17 @@ public:
 
     void backprop()
     {
-        for (int i = 0; i < outputs; i++)
-            dc_din[i] = dc_dout[i] * f_d(in_matrix[i]);
+
+        if(is_cuda) {
+            assert(in_matrix.is_cuda);
+            assert(out_matrix.is_cuda);
+            assert(out_matrix.numel() == in_matrix.numel());
+            int num_blocks = out_matrix.numel()/THREADS_PER_BLOCK;
+            activate_d<<<num_blocks,THREADS_PER_BLOCK>>>(in_matrix, dc_dout, dc_din, out_matrix.numel(), (int)act);
+        }
+        else {
+            for (int i = 0; i < outputs; i++)
+                dc_din.at(i) = dc_dout.at(i) * f_d_map_host[(int)act](in_matrix.at(i));
+        }
     }
 };

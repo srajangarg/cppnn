@@ -16,14 +16,15 @@ public:
     bool training_data_added = false;
     bool validation_data_added = false;
     bool nn_initialized = false;
+    bool is_cuda = false;
 
-    float **train_x, **train_y;
+    vector<Tensor> train_x, train_y;
     int num_train;
-    float **valid_x, **valid_y;
+    vector<Tensor> valid_x, valid_y;
     int num_valid;
 
     float learning_rate;
-    std::function<float(float *, float *, float *, int)> e;
+    std::function<float(Tensor, Tensor, Tensor, int)> e;
 
     // each data point has `inputs` number of floats
     NN(int ins)
@@ -50,8 +51,13 @@ public:
         // each element of t_y should be a float array having `last_layer->outputs` elements in it
         assert(t_x.size() == t_y.size());
 
-        train_x = t_x.data();
-        train_y = t_y.data();
+        int x_size = layers[0]->outputs;
+        int y_size = layers.back()->outputs;
+
+        for(auto x:t_x)
+            train_x.push_back(Tensor(x,x_size));
+        for(auto y:t_y)
+            train_y.push_back(Tensor(y,y_size));
         num_train = t_x.size();
 
         training_data_added = true;
@@ -63,8 +69,13 @@ public:
         // each element of v_y should be a float array having `lasv_layer->outputs` elements in it
         assert(v_x.size() == v_y.size());
 
-        valid_x = v_x.data();
-        valid_y = v_y.data();
+        int x_size = layers[0]->outputs;
+        int y_size = layers.back()->outputs;
+
+        for(auto x:v_x)
+            valid_x.push_back(Tensor(x,x_size));
+        for(auto y:v_y)
+            valid_y.push_back(Tensor(y,y_size));
         num_valid = v_x.size();
 
         validation_data_added = true;
@@ -81,16 +92,16 @@ public:
         nn_initialized = true;
     }
 
-    void forward(float *input_data)
+    void forward(Tensor input_data)
     {
         auto first_layer = layers[0];
-        memcpy(first_layer->out_matrix, input_data, first_layer->outputs * sizeof(float));
+        first_layer->out_matrix.copy_(input_data)
 
         for (auto &l : layers)
             l->forward();
     }
 
-    float backprop(float *target_data)
+    float backprop(Tensor target_data)
     {
         auto last_layer = layers[layers.size() - 1];
         float err = e(last_layer->out_matrix, target_data, last_layer->dc_dout, outputs);
@@ -116,15 +127,7 @@ public:
                         break;
                     }
                 }
-                auto pred_values = layers[layers.size() - 1]->out_matrix;
-                pred_index = 0;
-                float max_pred = pred_values[0];
-                for (int j = 0; j < outputs; j++) {
-                    if (pred_values[j] > max_pred) {
-                        max_pred = pred_values[j];
-                        pred_index = j;
-                    }
-                }
+                pred_index = (layers[layers.size() - 1]->out_matrix).argmax();
                 if (pred_index == correct_index)
                     correct_pred++;
             }
