@@ -10,10 +10,15 @@ using namespace std;
 
 int main(int argc, char const *argv[])
 {
+    cout << "nn" << endl;
     NN nn(784);
+    cout << "Adding Dense" << endl;
     nn.add_layer(new Dense(800));
+    cout << "Adding Activation" << endl;
     nn.add_layer(new Activation(Activations::SIGMOID, 800));
+    cout << "Adding Dense" << endl;
     nn.add_layer(new Dense(10));
+    cout << "Adding Activation" << endl;
     nn.add_layer(new Activation(Activations::SIGMOID, 10));
 
     nn.initialize(0.01, Errors::CROSSENTROPY);
@@ -29,6 +34,8 @@ int main(int argc, char const *argv[])
         train_x[i] = new float[784];
         train_y[i] = new float[10];
     }
+
+    cout << "Reading data..." << endl;
 
     std::string line;
     int curr_line = 0;
@@ -68,8 +75,16 @@ int main(int argc, char const *argv[])
     vector<float *> train_y_new(first, mid);
     vector<float *> train_y_valid(mid, last);
 
+    cout << "Adding train/test data..." << endl;
+
     nn.add_training_data(train_x, train_y);
     nn.add_validation_data(train_x, train_y);
+
+    #ifdef CUDA
+    nn.cuda();
+    #endif
+
+    cout << "Training..." << endl;
     nn.train(1000);
 
     for (int i = 0; i < train_size; i++) {

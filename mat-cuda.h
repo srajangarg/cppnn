@@ -5,14 +5,11 @@
 #include <math.h>
 #include <cuda.h>
 
-__global__ void mat_mul_device(float *a, float *b, float *out, int *m_ptr, int *k_ptr, int *n_ptr,
-                               bool *trans_a, bool *trans_b)
+__global__ void mat_mul_device(float *a, float *b, float *out, int m, int k, int n,
+                               bool trans_a, bool trans_b)
 {
     extern __shared__ float temp[];
 
-    int m = *m_ptr;
-    int k = *k_ptr;
-    int n = *n_ptr;
     int r = blockIdx.x / n;
     int c = blockIdx.x % n;
 
@@ -31,47 +28,22 @@ __global__ void mat_mul_device(float *a, float *b, float *out, int *m_ptr, int *
     }
 }
 
-void mat_mul(float *a, float *b, float *out, int m, int k, int n, bool trans_a = false,
+void mat_mul(Tensor&a_t, Tensor&b_t, Tensor&out_t, int m, int k, int n, bool trans_a = false,
              bool trans_b = false)
 {
-    int numBlocks, numThreads;
-    float *dev_a, *dev_b, *dev_out;
-    int *dev_m, *dev_k, *dev_n;
-    bool *dev_trans_a, *dev_trans_b;
+    assert(a_t.is_cuda);
+    assert(b_t.is_cuda);
+    assert(out_t.is_cuda);
 
-    cudaMalloc((void **)&dev_a, m * k * sizeof(float));
-    cudaMalloc((void **)&dev_b, k * n * sizeof(float));
-    cudaMalloc((void **)&dev_out, m * n * sizeof(float));
-    cudaMalloc((void **)&dev_m, sizeof(int));
-    cudaMalloc((void **)&dev_k, sizeof(int));
-    cudaMalloc((void **)&dev_n, sizeof(int));
-    cudaMalloc((void **)&dev_trans_a, sizeof(bool));
-    cudaMalloc((void **)&dev_trans_b, sizeof(bool));
+    float *a = a_t.data, *b = b_t.data, *out = out_t.data;
+
+    int numBlocks, numThreads;
 
     numBlocks = m * n;
     numThreads = k;
 
-    cudaMemcpy(dev_a, a, m * k * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_b, b, k * n * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_m, &m, sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_k, &k, sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_n, &n, sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_trans_a, &trans_a, sizeof(bool), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_trans_b, &trans_b, sizeof(bool), cudaMemcpyHostToDevice);
-
     mat_mul_device<<<numBlocks, numThreads, numThreads * sizeof(float)>>>(
-        dev_a, dev_b, dev_out, dev_m, dev_k, dev_n, dev_trans_a, dev_trans_b);
-
-    cudaMemcpy(out, dev_out, m * n * sizeof(float), cudaMemcpyDeviceToHost);
-
-    cudaFree(dev_a);
-    cudaFree(dev_b);
-    cudaFree(dev_out);
-    cudaFree(dev_m);
-    cudaFree(dev_k);
-    cudaFree(dev_n);
-    cudaFree(dev_trans_a);
-    cudaFree(dev_trans_b);
+        a, b, out, m, k, n, trans_a, trans_b);
 }
 
 #endif

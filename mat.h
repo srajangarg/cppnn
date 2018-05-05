@@ -2,12 +2,18 @@
 
 #ifndef CUDA
 
-void mat_mul(float *a, float *b, float *out, int m, int k, int n, bool trans_a = false,
+void mat_mul(Tensor &a_t, Tensor &b_t, Tensor &out_t, int m, int k, int n, bool trans_a = false,
              bool trans_b = false)
 {
     // op(a): m,k  (op can be transpose or identity)
     // op(b): k,n  (op can be transpose or identity)
     // out: m,n
+
+    assert(!a_t.is_cuda);
+    assert(!b_t.is_cuda);
+    assert(!out_t.is_cuda);
+
+    float *a = a_t.data, *b = b_t.data, *out = out_t.data;
     assert(a != NULL);
     assert(b != NULL);
     assert(out != NULL);

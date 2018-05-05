@@ -5,6 +5,7 @@
 void free_vec(float *v)
 {
     if (v != NULL) {
+        std::cout << "" __FILE__ ":" __LINE__ " ("__func__") freed pointer: " << v << std::endl;
         delete[] v;
         v = NULL;
     }
