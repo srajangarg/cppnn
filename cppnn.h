@@ -18,13 +18,13 @@ public:
     bool nn_initialized = false;
     bool is_cuda = false;
 
-    std::vector<Tensor> train_x, train_y;
+    std::vector<Tensor *> train_x, train_y;
     int num_train;
-    std::vector<Tensor> valid_x, valid_y;
+    std::vector<Tensor *> valid_x, valid_y;
     int num_valid;
 
     float learning_rate;
-    std::function<float(Tensor&, Tensor&, Tensor&, int)> e;
+    std::function<float(Tensor &, Tensor &, Tensor &, int)> e;
 
     // each data point has `inputs` number of floats
     NN(int ins)
@@ -34,18 +34,19 @@ public:
         outputs = ins;
     }
 
-    void cuda() {
-        if(!is_cuda) {
-            for(auto layer:layers)
+    void cuda()
+    {
+        if (!is_cuda) {
+            for (auto layer : layers)
                 layer->cuda();
-            for(auto&it:train_x)
-                it.cuda();
-            for(auto&it:train_y)
-                it.cuda();
-            for(auto&it:valid_x)
-                it.cuda();
-            // for(auto&it:valid_y)
-            //     it.cuda();
+            for (auto it : train_x)
+                it->cuda();
+            for (auto it : train_y)
+                it->cuda();
+            for (auto it : valid_x)
+                it->cuda();
+            // for(auto it:valid_y)
+            //     it->cuda();
             is_cuda = true;
         }
     }
@@ -56,10 +57,8 @@ public:
         layers.push_back(new_layer);
 
         new_layer->in_matrix = prev_layer->out_matrix;
-        std::cout<<"assigned in_matrix"<<std::endl;
         new_layer->inputs = prev_layer->outputs;
         new_layer->dc_din = prev_layer->dc_dout;
-        std::cout<<"assigned dc_in"<<std::endl;
         outputs = new_layer->outputs;
     }
 
@@ -72,10 +71,10 @@ public:
         int x_size = layers[0]->outputs;
         int y_size = layers.back()->outputs;
 
-        for(auto x:t_x)
-            train_x.push_back(Tensor(x,x_size));
-        for(auto y:t_y)
-            train_y.push_back(Tensor(y,y_size));
+        for (auto x : t_x)
+            train_x.push_back(new Tensor(x, x_size));
+        for (auto y : t_y)
+            train_y.push_back(new Tensor(y, y_size));
         num_train = t_x.size();
 
         training_data_added = true;
@@ -90,10 +89,10 @@ public:
         int x_size = layers[0]->outputs;
         int y_size = layers.back()->outputs;
 
-        for(auto x:v_x)
-            valid_x.push_back(Tensor(x,x_size));
-        for(auto y:v_y)
-            valid_y.push_back(Tensor(y,y_size));
+        for (auto x : v_x)
+            valid_x.push_back(new Tensor(x, x_size));
+        for (auto y : v_y)
+            valid_y.push_back(new Tensor(y, y_size));
         num_valid = v_x.size();
 
         validation_data_added = true;
@@ -110,7 +109,7 @@ public:
         nn_initialized = true;
     }
 
-    void forward(Tensor&input_data)
+    void forward(Tensor &input_data)
     {
         auto first_layer = layers[0];
         first_layer->out_matrix->copy_(input_data);
@@ -119,18 +118,12 @@ public:
             l->forward();
     }
 
-    float backprop(Tensor&target_data)
+    float backprop(Tensor &target_data)
     {
         auto last_layer = layers[layers.size() - 1];
         float err = e(*(last_layer->out_matrix), target_data, *(last_layer->dc_dout), outputs);
-        // std::cout << "lldcout:  " << last_layer->dc_dout->square_sum() << std::endl;
         for (int i = layers.size() - 1; i >= 0; i--)
             layers[i]->backprop();
-
-        // for (int i = layers.size() - 1; i >= 0; i--)
-        //     if(layers[i]->dc_dout != NULL)
-        //         std::cout << "l" << i << "dcout:  " << layers[i]->dc_dout->square_sum() << std::endl;
-
         return err;
     }
 
@@ -142,9 +135,9 @@ public:
             int correct_pred = 0;
             for (int i = 0; i < num_valid; i++) {
                 int pred_index, correct_index = 0;
-                forward(valid_x[i]);
+                forward(*valid_x[i]);
                 for (int j = 0; j < outputs; j++) {
-                    if (valid_y[i].at(j) == 1) {
+                    if (valid_y[i]->at(j) == 1) {
                         correct_index = j;
                         break;
                     }
@@ -177,7 +170,7 @@ public:
             float sum = 0;
             for (int j = 0; j < num_train; j++) {
                 // std::cout << "forward" << std::endl;
-                forward(train_x[j]);
+                forward(*train_x[j]);
 
                 // printf("predicted ");
                 // for (int i = 0; i < outputs; i++) {
@@ -191,7 +184,7 @@ public:
 
                 // printf("error: %.4f\n", backprop(train_y[j]));
                 // std::cout << "backprop" << std::endl;
-                sum += backprop(train_y[j]);
+                sum += backprop(*train_y[j]);
 
                 // std::cout << "update" << std::endl;
                 for (auto &l : layers)

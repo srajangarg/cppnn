@@ -94,13 +94,13 @@ void generate_gauss_blur_kernel(float *&kernel, int inF, int kH, int kW, int out
 
 void generate_highpass_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 {
-    assert(kH == 3 and kW==3);
+    assert(kH == 3 and kW == 3);
     alloc_vec(kernel, outF * kH * kW * inF);
     for (int of = 0; of < outF; ++of) {
         for (int ff = 0; ff < inF; ++ff) {
             for (int i = 0; i < kH; ++i) {
                 for (int j = 0; j < kW; ++j) {
-                    if((i+j)%2==1)
+                    if ((i + j) % 2 == 1)
                         at(kernel, outF, kH, kW, inF, of, i, j, ff) = -1;
                     else
                         at(kernel, outF, kH, kW, inF, of, i, j, ff) = 0;
@@ -113,13 +113,13 @@ void generate_highpass_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 
 void generate_sharpen_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 {
-    assert(kH == 3 and kW==3);
+    assert(kH == 3 and kW == 3);
     alloc_vec(kernel, outF * kH * kW * inF);
     for (int of = 0; of < outF; ++of) {
         for (int ff = 0; ff < inF; ++ff) {
             for (int i = 0; i < kH; ++i) {
                 for (int j = 0; j < kW; ++j) {
-                    if((i+j)%2==1)
+                    if ((i + j) % 2 == 1)
                         at(kernel, outF, kH, kW, inF, of, i, j, ff) = -1;
                     else
                         at(kernel, outF, kH, kW, inF, of, i, j, ff) = 0;
@@ -132,13 +132,13 @@ void generate_sharpen_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 
 void generate_emboss_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 {
-    assert(kH == 3 and kW==3);
+    assert(kH == 3 and kW == 3);
     alloc_vec(kernel, outF * kH * kW * inF);
     for (int of = 0; of < outF; ++of) {
         for (int ff = 0; ff < inF; ++ff) {
             for (int i = 0; i < kH; ++i) {
                 for (int j = 0; j < kW; ++j) {
-                    at(kernel, outF, kH, kW, inF, of, i, j, ff) = (i+j)-2;
+                    at(kernel, outF, kH, kW, inF, of, i, j, ff) = (i + j) - 2;
                 }
             }
             at(kernel, outF, kH, kW, inF, of, 1, 1, ff) = 1;
@@ -148,7 +148,7 @@ void generate_emboss_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 
 void generate_Gx_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 {
-    assert(kH == 3 and kW==3);
+    assert(kH == 3 and kW == 3);
     alloc_vec(kernel, outF * kH * kW * inF);
     for (int of = 0; of < outF; ++of) {
         for (int ff = 0; ff < inF; ++ff) {
@@ -167,7 +167,7 @@ void generate_Gx_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 
 void generate_Gy_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 {
-    assert(kH == 3 and kW==3);
+    assert(kH == 3 and kW == 3);
     alloc_vec(kernel, outF * kH * kW * inF);
     for (int of = 0; of < outF; ++of) {
         for (int ff = 0; ff < inF; ++ff) {
@@ -186,7 +186,7 @@ void generate_Gy_kernel(float *&kernel, int inF, int kH, int kW, int outF)
 
 void normalize_image(float *&img, int inF, int H, int W, float end = 255.)
 {
-    float max_val =-1000000;
+    float max_val = -1000000;
     float min_val = 1000000;
     for (int i = 0; i < H; ++i) {
         for (int j = 0; j < W; ++j) {
@@ -200,7 +200,8 @@ void normalize_image(float *&img, int inF, int H, int W, float end = 255.)
     for (int i = 0; i < H; ++i) {
         for (int j = 0; j < W; ++j) {
             for (int ff = 0; ff < inF; ++ff) {
-                at(img, H, W, inF, i, j, ff) = (at(img, H, W, inF, i, j, ff) - min_val)/max_val * end;
+                at(img, H, W, inF, i, j, ff)
+                    = (at(img, H, W, inF, i, j, ff) - min_val) / max_val * end;
             }
         }
     }

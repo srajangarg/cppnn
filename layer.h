@@ -15,10 +15,10 @@ public:
     virtual void cuda() = 0;
 
     // add more common methods and members as and when required
-    Tensor* in_matrix = NULL;
-    Tensor* out_matrix = NULL;
-    Tensor* dc_dout = NULL;
-    Tensor* dc_din = NULL;
+    Tensor *in_matrix = NULL;
+    Tensor *out_matrix = NULL;
+    Tensor *dc_dout = NULL;
+    Tensor *dc_din = NULL;
     int outputs;
     int inputs;
     bool is_cuda = false;
@@ -35,32 +35,23 @@ class Dense : public Layer
 {
 
 public:
-    Tensor* wt_matrix = NULL; // input x output
-    Tensor* bias = NULL;      // 1 x output
-    Tensor* dc_dw = NULL;     // input x output
-    Tensor* dc_dbias = NULL;  // 1 x output
+    Tensor *wt_matrix = NULL; // input x output
+    Tensor *bias = NULL;      // 1 x output
+    Tensor *dc_dw = NULL;     // input x output
+    Tensor *dc_dbias = NULL;  // 1 x output
 
-    void cuda() {
-        std::cout << "Dense to cuda" << std::endl;
-        std::cout << "in_matrix to cuda" << std::endl;
+    void cuda()
+    {
         in_matrix->cuda();
-        std::cout << "out_matrix to cuda" << std::endl;
         out_matrix->cuda();
-        std::cout << "dc_dout to cuda" << std::endl;
         dc_dout->cuda();
-        std::cout << "dc_din to cuda" << std::endl;
         dc_din->cuda();
-        std::cout << "wt_matrix to cuda" << std::endl;
         wt_matrix->cuda();
-        std::cout << "bias to cuda" << std::endl;
         bias->cuda();
-        std::cout << "dc_dw to cuda" << std::endl;
         dc_dw->cuda();
-        std::cout << "dc_dbias to cuda" << std::endl;
         dc_dbias->cuda();
         is_cuda = true;
     }
-
 
     Dense(int outs)
     {
@@ -100,8 +91,6 @@ public:
 
     void update(float lr)
     {
-        // std::cout << "dc_dw:    " << dc_dw->square_sum() << std::endl;
-        // std::cout << "dc_dbias: " << dc_dbias->square_sum() << std::endl;
         wt_matrix->add_(*dc_dw, -lr);
         bias->add_(*dc_dbias, -lr);
     }
@@ -126,15 +115,11 @@ public:
         dc_dout = new Tensor(outs);
     }
 
-    void cuda() {
-        std::cout << "Input to cuda" << std::endl;
-        // std::cout << "in_matrix" << std::endl;
+    void cuda()
+    {
         // in_matrix->cuda();
-        std::cout << "out_matrix" << std::endl;
         out_matrix->cuda();
-        std::cout << "dc_dout" << std::endl;
         dc_dout->cuda();
-        // std::cout << "dc_din" << std::endl;
         // dc_din->cuda();
         is_cuda = true;
     }

@@ -5,8 +5,8 @@
 #include <math.h>
 #include <cuda.h>
 
-__global__ void mat_mul_device(float *a, float *b, float *out, int m, int k, int n,
-                               bool trans_a, bool trans_b)
+__global__ void mat_mul_device(float *a, float *b, float *out, int m, int k, int n, bool trans_a,
+                               bool trans_b)
 {
     extern __shared__ float temp[];
 
@@ -28,7 +28,7 @@ __global__ void mat_mul_device(float *a, float *b, float *out, int m, int k, int
     }
 }
 
-void mat_mul(Tensor&a_t, Tensor&b_t, Tensor&out_t, int m, int k, int n, bool trans_a = false,
+void mat_mul(Tensor &a_t, Tensor &b_t, Tensor &out_t, int m, int k, int n, bool trans_a = false,
              bool trans_b = false)
 {
     assert(a_t.is_cuda);
@@ -42,8 +42,8 @@ void mat_mul(Tensor&a_t, Tensor&b_t, Tensor&out_t, int m, int k, int n, bool tra
     numBlocks = m * n;
     numThreads = k;
 
-    mat_mul_device<<<numBlocks, numThreads, numThreads * sizeof(float)>>>(
-        a, b, out, m, k, n, trans_a, trans_b);
+    mat_mul_device<<<numBlocks, numThreads, numThreads * sizeof(float)>>>(a, b, out, m, k, n,
+                                                                          trans_a, trans_b);
 }
 
 #endif
