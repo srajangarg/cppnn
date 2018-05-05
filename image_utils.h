@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
-#include "CImg.h"
+#include "CImg.hh"
 #include "misc.h"
 
 void copy_to_CImg(cil::CImg<float> &cimg, float *img, int H, int W, int C)

@@ -3,7 +3,6 @@
 #include <random>
 #include "tensor.h"
 #include "mat.h"
-#include "mat-cuda.h"
 
 class Layer
 {

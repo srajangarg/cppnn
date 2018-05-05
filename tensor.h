@@ -112,7 +112,6 @@ public:
                 cudaFree(data);
                 data = NULL;
             } else {
-                std::cout << "" __FILE__ ":" << __LINE__ << " freed pointer: " << data << std::endl;
                 delete[] data;
                 data = NULL;
             }
@@ -204,6 +203,7 @@ public:
         return data[index];
     }
 
+    // OP
     void add_(Tensor &other, float scale = 1)
     {
         assert(is_cuda == other.is_cuda);
@@ -338,6 +338,7 @@ public:
         return arg_minmax(false);
     }
 
+    // PRINT
     void print_data(std::ostream &s, float *fdata, int size)
     {
         for (int i = 0; i < size; ++i) {
