@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <sys/time.h>
 
 #include "cppnn.h"
 #include "activation.h"
@@ -10,6 +11,10 @@ using namespace std;
 
 int main(int argc, char const *argv[])
 {
+    struct timeval start_time, end_time;
+    float time_in_ms;
+    gettimeofday(&start_time, NULL);
+
     NN nn(784);
     nn.add_layer(new Dense(800));
     nn.add_layer(new Activation(Activations::SIGMOID, 800));
@@ -80,7 +85,14 @@ int main(int argc, char const *argv[])
     nn.cuda();
 #endif
 
+    gettimeofday(&end_time, NULL);
     cout << "Training..." << endl;
+    time_in_ms = (end_time.tv_sec - start_time.tv_sec) * 1000
+                 + 1.0 * (end_time.tv_usec - start_time.tv_usec) / 1000;
+
+    printf("Time taken in preprocessing = %f ms\n", time_in_ms);
+    std::cout << std::endl;
+
     nn.train(10);
 
     for (int i = 0; i < train_size; i++) {

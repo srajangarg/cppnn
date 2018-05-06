@@ -43,7 +43,7 @@ void copy_from_CImg(cil::CImg<float> &cimg, Tensor &img, int H, int W, int C)
 
 void read_image(const char *fpath, Tensor &img, int &H, int &W, int &C)
 {
-    cil::CImg<float> cimg("images/car.jpg");
+    cil::CImg<float> cimg(fpath);
     H = cimg._height;
     W = cimg._width;
     C = cimg._spectrum;
@@ -255,5 +255,4 @@ inline void normalize_scale_image(Tensor &img, int inF, int H, int W, float end 
     float min_val, max_val;
     img.minmax(min_val, max_val);
     img.add_(-min_val).mul_(end / max_val);
-    std::cout << max_val << " " << min_val << std::endl;
 }

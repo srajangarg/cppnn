@@ -165,8 +165,11 @@ public:
 
         auto last_layer = layers[layers.size() - 1];
 
-        for (int i = 0; i < epochs; i++) {
+        struct timeval start_time, end_time;
+        float time_in_ms;
+        gettimeofday(&start_time, NULL);
 
+        for (int i = 0; i < epochs; i++) {
             float sum = 0;
             for (int j = 0; j < num_train; j++) {
                 // std::cout << "forward" << std::endl;
@@ -190,8 +193,13 @@ public:
                 for (auto &l : layers)
                     l->update(learning_rate);
             }
-            printf("error %.4f\n", sum / num_train);
             validate();
+            printf("error %.4f\n", sum / num_train);
+            gettimeofday(&end_time, NULL);
+            time_in_ms = (end_time.tv_sec - start_time.tv_sec) * 1000
+                         + 1.0 * (end_time.tv_usec - start_time.tv_usec) / 1000;
+            printf("Time taken in epoch %d = %f ms\n", i, time_in_ms);
+            std::cout << std::endl;
         }
     }
 
