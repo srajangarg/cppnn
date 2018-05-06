@@ -3,6 +3,7 @@
 #include "misc.h"
 #include "tensor.h"
 #include <cuda.h>
+#include <omp.h>
 
 __device__ __host__ inline float &at(float *f, int I, int i)
 {
@@ -40,14 +41,11 @@ void func_conv2d_cpu(Tensor &img_t, int inF, int H, int W, Tensor &kernel_t, int
     float *kernel = kernel_t.data;
     float *out = out_t.data;
 
-    int kH_centre = kH / 2;
-    int kW_centre = kW / 2;
-
     int outH = H - kH + 1 + 2 * padH;
     int outW = W - kW + 1 + 2 * padW;
     assert(out_t.is_shape(outH, outW, outF));
-    // alloc_vec(out, outH * outW * outF);
 
+#pragma omp parallel for collapse(3)
     for (int of = 0; of < outF; ++of) {
         for (int i = 0; i < outH; ++i) {
             for (int j = 0; j < outW; ++j) {

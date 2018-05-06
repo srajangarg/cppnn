@@ -9,16 +9,16 @@ format: $(DEPS)
 	@clang-format-3.8 -i *.h *.cu
 
 test: $(DEPS)
-	@nvcc --std=c++11 $@.cu -o $@ -g
+	@nvcc --std=c++11 $@.cu -o $@ -g -Xcompiler -fopenmp -lgomp
 
 test_conv: $(DEPS)
-	@nvcc --std=c++11 $@.cu -o $@ -lpthread -lX11 -w -g
+	@nvcc --std=c++11 $@.cu -o $@ -lpthread -lX11 -w -g -Xcompiler -fopenmp -lgomp
 
 test_cuda: $(DEPS)
-	@nvcc --std=c++11 test.cu -o $@ -w -D CUDA -g
+	@nvcc --std=c++11 test.cu -o $@ -w -D CUDA -g -Xcompiler -fopenmp -lgomp
 
 test_conv_cuda: $(DEPS)
-	@nvcc --std=c++11 test_conv.cu -o $@ -lpthread -lX11 -w -D CUDA -g
+	@nvcc --std=c++11 test_conv.cu -o $@ -lpthread -lX11 -w -D CUDA -g -Xcompiler -fopenmp -lgomp
 
 clean:
 	rm -f test

@@ -8,6 +8,7 @@
 #include <fstream>
 #include <istream>
 #include <cassert>
+#include <omp.h>
 
 #ifndef THREADS_PER_BLOCK
 #define THREADS_PER_BLOCK 256
@@ -52,6 +53,12 @@ __global__ void tensor_mul_(float *tensor, int size, float val)
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index < size)
         tensor[index] *= val;
+}
+__global__ void tensor_fill_(float *tensor, int size, float val)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < size)
+        tensor[index] = val;
 }
 __global__ void tensor_clip_(float *lhs, int size, float start, float end)
 {
@@ -289,6 +296,7 @@ public:
             int num_blocks = ceil(((float)numel()) / THREADS_PER_BLOCK);
             tensor_add_<<<num_blocks, THREADS_PER_BLOCK>>>(data, other.data, numel(), scale);
         } else {
+#pragma omp parallel for
             for (int i = 0; i < numel(); ++i)
                 data[i] += scale * other.data[i];
         }
@@ -300,6 +308,7 @@ public:
             int num_blocks = ceil(((float)numel()) / THREADS_PER_BLOCK);
             tensor_add_<<<num_blocks, THREADS_PER_BLOCK>>>(data, numel(), val);
         } else {
+#pragma omp parallel for
             for (int i = 0; i < numel(); ++i)
                 data[i] += val;
         }
@@ -316,6 +325,7 @@ public:
             tensor_sub<<<num_blocks, THREADS_PER_BLOCK>>>(out.data, data, second.data, numel(),
                                                           scale);
         } else {
+#pragma omp parallel for
             for (int i = 0; i < numel(); ++i)
                 out.data[i] = scale * (data[i] - second.data[i]);
         }
@@ -344,10 +354,15 @@ public:
     }
     Tensor &fill_(float c)
     {
-        if (is_cuda)
-            cudaMemset(data, c, numel() * sizeof(float));
-        else
-            std::fill(data, data + numel(), c);
+        if (is_cuda) {
+            int num_blocks = ceil(((float)numel()) / THREADS_PER_BLOCK);
+            tensor_fill_<<<num_blocks, THREADS_PER_BLOCK>>>(data, numel(), c);
+        } else {
+#pragma omp parallel for
+            for (int i = 0; i < numel(); ++i) {
+                data[i] = c;
+            }
+        }
         return *this;
     }
     Tensor &mul_(float val)
@@ -356,6 +371,7 @@ public:
             int num_blocks = ceil(((float)numel()) / THREADS_PER_BLOCK);
             tensor_mul_<<<num_blocks, THREADS_PER_BLOCK>>>(data, numel(), val);
         } else {
+#pragma omp parallel for
             for (int i = 0; i < numel(); ++i)
                 data[i] *= val;
         }
@@ -367,6 +383,7 @@ public:
             int num_blocks = ceil(((float)numel()) / THREADS_PER_BLOCK);
             tensor_clip_<<<num_blocks, THREADS_PER_BLOCK>>>(data, numel(), start, end);
         } else {
+#pragma omp parallel for
             for (int i = 0; i < numel(); ++i)
                 data[i] = min(max(data[i], start), end);
         }
@@ -381,6 +398,7 @@ public:
             tensor_mag_components_<<<num_blocks, THREADS_PER_BLOCK>>>(data, other.data, numel(),
                                                                       scale);
         } else {
+#pragma omp parallel for
             for (int i = 0; i < numel(); ++i)
                 data[i] = sqrt(pow(data[i], 2) + scale * pow(other.data[i], 2));
         }
@@ -402,16 +420,15 @@ public:
     {
         // TODO: Better Reduction Method
         float *cpu_data = get_data_cpu();
-        int imax = 0;
-        int imin = 0;
+        max = cpu_data[0];
+        min = cpu_data[0];
+#pragma omp parallel for reduction(max : max), reduction(min : min)
         for (int i = 0; i < numel(); ++i) {
-            if ((cpu_data[i] < cpu_data[imin]))
-                imin = i;
-            if ((cpu_data[i] > cpu_data[imax]))
-                imax = i;
+            if ((cpu_data[i] < min))
+                min = cpu_data[i];
+            if ((cpu_data[i] > max))
+                max = cpu_data[i];
         }
-        min = cpu_data[imin];
-        max = cpu_data[imax];
 
         if (is_cuda)
             delete[] cpu_data;
@@ -421,6 +438,7 @@ public:
         // TODO: Better Reduction Method
         float *cpu_data = get_data_cpu();
         int imax = 0;
+        // #pragma omp parallel for
         for (int i = 0; i < numel(); ++i)
             if ((cpu_data[i] < cpu_data[imax]) ^ max)
                 imax = i;
@@ -447,6 +465,7 @@ public:
         // TODO: Better Reduction Method
         float *cpu_data = get_data_cpu();
         float ssum = 0;
+#pragma omp parallel for reduction(+ : ssum)
         for (int i = 0; i < numel(); ++i)
             ssum += cpu_data[i];
         if (is_cuda)
@@ -458,6 +477,7 @@ public:
         // TODO: Better Reduction Method
         float *cpu_data = get_data_cpu();
         float ssum = 0;
+#pragma omp parallel for reduction(+ : ssum)
         for (int i = 0; i < numel(); ++i)
             ssum += cpu_data[i] * cpu_data[i];
         if (is_cuda)
@@ -469,6 +489,7 @@ public:
         // TODO: Better Reduction Method
         float *cpu_data = get_data_cpu();
         float ssum = 0;
+#pragma omp parallel for reduction(+ : ssum)
         for (int i = 0; i < numel(); ++i)
             ssum += cpu_data[i];
         if (is_cuda)

@@ -88,6 +88,7 @@ public:
             activate<<<num_blocks, THREADS_PER_BLOCK>>>(in_matrix->data, out_matrix->data,
                                                         out_matrix->numel(), (int)act);
         } else {
+#pragma omp parallel for
             for (int i = 0; i < outputs; i++)
                 out_matrix->at(i) = f_map_host[(int)act](in_matrix->at(i));
         }
@@ -112,6 +113,7 @@ public:
             activate_d<<<num_blocks, THREADS_PER_BLOCK>>>(
                 in_matrix->data, dc_dout->data, dc_din->data, out_matrix->numel(), (int)act);
         } else {
+#pragma omp parallel for
             for (int i = 0; i < outputs; i++)
                 dc_din->at(i) = dc_dout->at(i) * f_d_map_host[(int)act](in_matrix->at(i));
         }

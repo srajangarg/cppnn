@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <cuda.h>
+#include <omp.h>
 
 void mat_mul_cpu(Tensor &a_t, Tensor &b_t, Tensor &out_t, int m, int k, int n, bool trans_a = false,
                  bool trans_b = false)
@@ -19,14 +20,14 @@ void mat_mul_cpu(Tensor &a_t, Tensor &b_t, Tensor &out_t, int m, int k, int n, b
     assert(b != NULL);
     assert(out != NULL);
 
-    int a_index, b_index;
     int a_inc = (trans_a) ? m : 1;
     int b_inc = (trans_b) ? 1 : n;
 
+#pragma omp parallel for collapse(2)
     for (int r = 0; r < m; ++r) {
         for (int c = 0; c < n; ++c) {
-            a_index = (trans_a) ? r : r * k;
-            b_index = (trans_b) ? c * k : c;
+            int a_index = (trans_a) ? r : r * k;
+            int b_index = (trans_b) ? c * k : c;
             out[r * n + c] = 0;
             for (int l = 0; l < k; ++l) {
                 out[r * n + c] += a[a_index] * b[b_index];
@@ -83,6 +84,9 @@ void mat_mul(Tensor &a_t, Tensor &b_t, Tensor &out_t, int m, int k, int n, bool 
 {
     assert(a_t.is_cuda == b_t.is_cuda);
     assert(a_t.is_cuda == out_t.is_cuda);
+    assert(a_t.numel() == m * k);
+    assert(b_t.numel() == k * n);
+    assert(out_t.numel() == m * n);
     if (a_t.is_cuda) {
         mat_mul_cuda(a_t, b_t, out_t, m, k, n, trans_a, trans_b);
     } else {
