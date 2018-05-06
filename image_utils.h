@@ -100,13 +100,14 @@ void generate_highpass_kernel(float *&kernel, int inF, int kH, int kW, int outF)
         for (int ff = 0; ff < inF; ++ff) {
             for (int i = 0; i < kH; ++i) {
                 for (int j = 0; j < kW; ++j) {
-                    if ((i + j) % 2 == 1)
+                    if (ff == of && ((i + j) % 2 == 1))
                         at(kernel, outF, kH, kW, inF, of, i, j, ff) = -1;
                     else
                         at(kernel, outF, kH, kW, inF, of, i, j, ff) = 0;
                 }
             }
-            at(kernel, outF, kH, kW, inF, of, 1, 1, ff) = 4;
+            if (ff == of)
+                at(kernel, outF, kH, kW, inF, of, 1, 1, ff) = 4;
         }
     }
 }
@@ -119,13 +120,14 @@ void generate_sharpen_kernel(float *&kernel, int inF, int kH, int kW, int outF)
         for (int ff = 0; ff < inF; ++ff) {
             for (int i = 0; i < kH; ++i) {
                 for (int j = 0; j < kW; ++j) {
-                    if ((i + j) % 2 == 1)
+                    if (ff == of && ((i + j) % 2 == 1))
                         at(kernel, outF, kH, kW, inF, of, i, j, ff) = -1;
                     else
                         at(kernel, outF, kH, kW, inF, of, i, j, ff) = 0;
                 }
             }
-            at(kernel, outF, kH, kW, inF, of, 1, 1, ff) = 5;
+            if (ff == of)
+                at(kernel, outF, kH, kW, inF, of, 1, 1, ff) = 5;
         }
     }
 }
@@ -184,7 +186,7 @@ void generate_Gy_kernel(float *&kernel, int inF, int kH, int kW, int outF)
     }
 }
 
-void normalize_image(float *&img, int inF, int H, int W, float end = 255.)
+void normalize_scale_image(float *&img, int inF, int H, int W, float end = 255.)
 {
     float max_val = -1000000;
     float min_val = 1000000;
@@ -207,12 +209,36 @@ void normalize_image(float *&img, int inF, int H, int W, float end = 255.)
     }
 }
 
+void normalize_clip_image(float *&img, int inF, int H, int W, float end = 255.)
+{
+    for (int i = 0; i < H; ++i) {
+        for (int j = 0; j < W; ++j) {
+            for (int ff = 0; ff < inF; ++ff) {
+                at(img, H, W, inF, i, j, ff) = min(max(at(img, H, W, inF, i, j, ff), 0.), 255.);
+            }
+        }
+    }
+}
+
 void add_image(float *&img1, float *&img2, int inF, int H, int W, float end = 255.)
 {
     for (int i = 0; i < H; ++i) {
         for (int j = 0; j < W; ++j) {
             for (int ff = 0; ff < inF; ++ff) {
                 at(img1, H, W, inF, i, j, ff) += at(img2, H, W, inF, i, j, ff);
+            }
+        }
+    }
+}
+
+void square_add_image(float *&img1, float *&img2, int inF, int H, int W, float end = 255.)
+{
+    for (int i = 0; i < H; ++i) {
+        for (int j = 0; j < W; ++j) {
+            for (int ff = 0; ff < inF; ++ff) {
+                at(img1, H, W, inF, i, j, ff)
+                    = sqrt(at(img1, H, W, inF, i, j, ff) * at(img1, H, W, inF, i, j, ff)
+                           + at(img2, H, W, inF, i, j, ff) * at(img2, H, W, inF, i, j, ff));
             }
         }
     }

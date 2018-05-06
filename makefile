@@ -1,4 +1,4 @@
-DEPS=activation.h  CImg.h  conv-cuda.h  conv.h  cppnn.h  error.h  image_utils.h  layer.h  mat-cuda.h  mat.h
+DEPS=activation.h  conv-cuda.h  conv.h  cppnn.h  error.h  image_utils.h  layer.h  mat.h  misc.h  tensor.h  test_conv.cu  test.cu  CImg.hh
 
 # dummy
 all: format test test_conv cuda
