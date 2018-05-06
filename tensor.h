@@ -18,6 +18,11 @@
         delete x;                                                                                  \
         x = NULL;                                                                                  \
     }
+#define DELETE_CUDA_NULL(x)                                                                        \
+    if (x != NULL) {                                                                               \
+        cudaFree(x);                                                                               \
+        x = NULL;                                                                                  \
+    }
 #define DELETE_VEC_NULL(x)                                                                         \
     if (x != NULL) {                                                                               \
         delete[] x;                                                                                \
@@ -30,17 +35,35 @@ __global__ void tensor_add_(float *lhs, float *rhs, int size, float scale)
     if (index < size)
         lhs[index] += scale * rhs[index];
 }
+__global__ void tensor_add_(float *lhs, int size, float val)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < size)
+        lhs[index] += val;
+}
 __global__ void tensor_sub(float *out, float *first, float *second, int size, float scale)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index < size)
         out[index] = scale * (first[index] - second[index]);
 }
-__global__ void tensor_mul_(float *tensor, int size, float c)
+__global__ void tensor_mul_(float *tensor, int size, float val)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index < size)
-        tensor[index] *= c;
+        tensor[index] *= val;
+}
+__global__ void tensor_clip_(float *lhs, int size, float start, float end)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < size)
+        lhs[index] = min(max(lhs[index], start), end);
+}
+__global__ void tensor_mag_components_(float *lhs, float *rhs, int size, float scale)
+{
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < size)
+        lhs[index] = sqrt(pow(lhs[index], 2) + scale * pow(rhs[index], 2));
 }
 
 class Tensor
@@ -52,20 +75,29 @@ public:
     int ndims;
 
 private:
-    void init(int n, ...)
+    void init(int nargs, ...)
     {
-        assert(ndims == n - 1); // Already done in constructor
+        assert(ndims == nargs - 1); // Already done in constructor
         assert(ndims <= NDIM_MAX);
         va_list vl;
-        va_start(vl, n);
-        data = va_arg(vl, float *);
-        for (int i = 0; i < n; ++i)
+        va_start(vl, nargs);
+        float *data_arg = va_arg(vl, float *);
+        for (int i = 0; i < ndims; ++i)
             shape[i] = va_arg(vl, int);
-        for (int i = n; i < NDIM_MAX; ++i)
+        for (int i = ndims; i < NDIM_MAX; ++i)
             shape[i] = 1;
         va_end(vl);
-        if (data == NULL)
+        if (is_cuda) {
+            DELETE_CUDA_NULL(data);
+            cudaMalloc(&data, numel() * sizeof(float));
+            if (data_arg != NULL)
+                cudaMemcpy(data, data_arg, numel() * sizeof(float), cudaMemcpyHostToDevice);
+        } else {
+            DELETE_VEC_NULL(data);
             data = new float[numel()];
+            if (data_arg != NULL)
+                memcpy(data, data_arg, numel() * sizeof(float));
+        }
         assert(data != NULL);
     };
 
@@ -87,7 +119,7 @@ public:
     {
         init(5, (float *)NULL, H, W, C, D);
     }
-    // Does not copy data from float
+    // Does copy data from float
     Tensor(float *dat, int H) : is_cuda(false), data(NULL), ndims(1)
     {
         init(2, dat, H);
@@ -106,24 +138,11 @@ public:
     }
     ~Tensor()
     {
-        // TODO: Fix data-sharing problem
-        if (data != NULL) {
-            if (is_cuda) {
-                cudaFree(data);
-                data = NULL;
-            } else {
-                delete[] data;
-                data = NULL;
-            }
-        }
+        if (is_cuda)
+            DELETE_CUDA_NULL(data)
+        else
+            DELETE_VEC_NULL(data)
     }
-
-    Tensor &operator=(const Tensor &other)
-    {
-        assert(false);
-        return *this;
-    }
-
     Tensor(const Tensor &other)
     {
         for (int i = 0; i < NDIM_MAX; ++i) {
@@ -140,25 +159,83 @@ public:
             memcpy(data, other.data, numel() * sizeof(float));
         }
     }
+    Tensor &operator=(const Tensor &other)
+    {
+        assert(false);
+        return *this;
+    }
+
+    bool is_shape(int H, int W, int C, int D)
+    {
+        return ndims == 4 and shape[0] == H and shape[1] == W and shape[2] == C and shape[3] == D;
+    }
+    bool is_shape(int H, int W, int C)
+    {
+        return ndims == 3 and shape[0] == H and shape[1] == W and shape[2] == C;
+    }
+    bool is_shape(int H, int W)
+    {
+        return ndims == 2 and shape[0] == H and shape[1] == W;
+    }
+    bool is_shape(int H)
+    {
+        return ndims == 1 and shape[0] == H;
+    }
+
+    void resize(int H, int W, int C, int D)
+    {
+        if (!is_shape(H, W, C, D)) {
+            ndims = 4;
+            init(ndims + 1, (float *)NULL, H, W, C, D);
+        }
+    }
+    void resize(int H, int W, int C)
+    {
+        if (!is_shape(H, W, C)) {
+            ndims = 3;
+            init(ndims + 1, (float *)NULL, H, W, C);
+        }
+    }
+    void resize(int H, int W)
+    {
+        if (!is_shape(H, W)) {
+            ndims = 2;
+            init(ndims + 1, (float *)NULL, H, W);
+        }
+    }
+    void resize(int H)
+    {
+        if (!is_shape(H)) {
+            ndims = 1;
+            init(ndims + 1, (float *)NULL, H);
+        }
+    }
 
     unsigned long numel() const
     {
-        unsigned long res = 1;
-        for (int i = 0; i < ndims; ++i)
-            res *= shape[i];
-        return res;
+        if (ndims == 0) {
+            return 0;
+        } else {
+            unsigned long res = 1;
+            for (int i = 0; i < ndims; ++i)
+                res *= shape[i];
+            return res;
+        }
     }
 
     void cuda()
     {
         if (!is_cuda) {
-            float *cuda_data = NULL;
-            cudaMalloc((void **)&cuda_data, numel() * sizeof(float));
-            cudaMemcpy(cuda_data, data, numel() * sizeof(float), cudaMemcpyHostToDevice);
-
-            // std::cout <<  "" __FILE__ ":" << __LINE__ << " freed pointer: " << data << std::endl;
-            // delete []data; // Cannot delete because other tensors may share same data
-            data = cuda_data;
+            if (numel() > 0) {
+                assert(data != NULL);
+                float *cuda_data = NULL;
+                cudaMalloc((void **)&cuda_data, numel() * sizeof(float));
+                cudaMemcpy(cuda_data, data, numel() * sizeof(float), cudaMemcpyHostToDevice);
+                delete[] data;
+                data = cuda_data;
+            } else {
+                assert(data == NULL);
+            }
             is_cuda = true;
         }
     }
@@ -204,7 +281,7 @@ public:
     }
 
     // OP
-    void add_(Tensor &other, float scale = 1)
+    Tensor &add_(Tensor &other, float scale = 1)
     {
         assert(is_cuda == other.is_cuda);
         assert(numel() == other.numel());
@@ -215,8 +292,20 @@ public:
             for (int i = 0; i < numel(); ++i)
                 data[i] += scale * other.data[i];
         }
+        return *this;
     }
-    void sub(Tensor &second, Tensor &out, float scale = 1)
+    Tensor &add_(float val)
+    {
+        if (is_cuda) {
+            int num_blocks = ceil(((float)numel()) / THREADS_PER_BLOCK);
+            tensor_add_<<<num_blocks, THREADS_PER_BLOCK>>>(data, numel(), val);
+        } else {
+            for (int i = 0; i < numel(); ++i)
+                data[i] += val;
+        }
+        return *this;
+    }
+    Tensor &sub(Tensor &second, Tensor &out, float scale = 1)
     {
         assert(is_cuda == second.is_cuda);
         assert(is_cuda == out.is_cuda);
@@ -230,8 +319,9 @@ public:
             for (int i = 0; i < numel(); ++i)
                 out.data[i] = scale * (data[i] - second.data[i]);
         }
+        return *this;
     }
-    void copy_(Tensor &other)
+    Tensor &copy_(Tensor &other)
     {
         if (is_cuda != other.is_cuda)
             std::cerr << "Warning: Copying across devices" << std::endl;
@@ -242,30 +332,59 @@ public:
             cudaMemcpy(data, other.data, numel() * sizeof(float), cudaMemcpyDeviceToDevice);
         else if (!is_cuda)
             cudaMemcpy(data, other.data, numel() * sizeof(float), cudaMemcpyDeviceToHost);
+        return *this;
     }
-    void copy_(float *other)
+    Tensor &copy_(float *other)
     {
         if (is_cuda)
             cudaMemcpy(data, other, numel() * sizeof(float), cudaMemcpyHostToDevice);
         else
             memcpy(data, other, numel() * sizeof(float));
+        return *this;
     }
-    void fill_(float c)
+    Tensor &fill_(float c)
     {
         if (is_cuda)
             cudaMemset(data, c, numel() * sizeof(float));
         else
             std::fill(data, data + numel(), c);
+        return *this;
     }
-    void mul_(float c)
+    Tensor &mul_(float val)
     {
         if (is_cuda) {
             int num_blocks = ceil(((float)numel()) / THREADS_PER_BLOCK);
-            tensor_mul_<<<num_blocks, THREADS_PER_BLOCK>>>(data, numel(), c);
+            tensor_mul_<<<num_blocks, THREADS_PER_BLOCK>>>(data, numel(), val);
         } else {
             for (int i = 0; i < numel(); ++i)
-                data[i] *= c;
+                data[i] *= val;
         }
+        return *this;
+    }
+    Tensor &clip_(float start = 0., float end = 255.)
+    {
+        if (is_cuda) {
+            int num_blocks = ceil(((float)numel()) / THREADS_PER_BLOCK);
+            tensor_clip_<<<num_blocks, THREADS_PER_BLOCK>>>(data, numel(), start, end);
+        } else {
+            for (int i = 0; i < numel(); ++i)
+                data[i] = min(max(data[i], start), end);
+        }
+        return *this;
+    }
+    Tensor &mag_components_(Tensor &other, float scale = 1)
+    {
+        assert(is_cuda == other.is_cuda);
+        assert(numel() == other.numel());
+        if (is_cuda) {
+            int num_blocks = ceil(((float)numel()) / THREADS_PER_BLOCK);
+            tensor_mag_components_<<<num_blocks, THREADS_PER_BLOCK>>>(data, other.data, numel(),
+                                                                      scale);
+        } else {
+            for (int i = 0; i < numel(); ++i)
+                data[i] = sqrt(pow(data[i], 2) + scale * pow(other.data[i], 2));
+        }
+        return *this;
     }
     float *get_data_cpu()
     {
@@ -277,6 +396,25 @@ public:
             cpu_data = data;
         }
         return cpu_data;
+    }
+
+    void minmax(float &min, float &max)
+    {
+        // TODO: Better Reduction Method
+        float *cpu_data = get_data_cpu();
+        int imax = 0;
+        int imin = 0;
+        for (int i = 0; i < numel(); ++i) {
+            if ((cpu_data[i] < cpu_data[imin]))
+                imin = i;
+            if ((cpu_data[i] > cpu_data[imax]))
+                imax = i;
+        }
+        min = cpu_data[imin];
+        max = cpu_data[imax];
+
+        if (is_cuda)
+            delete[] cpu_data;
     }
     int arg_minmax(bool max)
     {
@@ -295,6 +433,14 @@ public:
                       << ndims << ")" << std::endl;
 
         return imax;
+    }
+    int argmax()
+    {
+        return arg_minmax(true);
+    }
+    int argmin()
+    {
+        return arg_minmax(false);
     }
     float sum()
     {
@@ -328,14 +474,6 @@ public:
         if (is_cuda)
             delete[] cpu_data;
         return ssum;
-    }
-    int argmax()
-    {
-        return arg_minmax(true);
-    }
-    int argmin()
-    {
-        return arg_minmax(false);
     }
 
     // PRINT

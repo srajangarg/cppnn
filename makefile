@@ -1,4 +1,4 @@
-DEPS=activation.h  conv-cuda.h  conv.h  cppnn.h  error.h  image_utils.h  layer.h  mat.h  misc.h  tensor.h  test_conv.cu  test.cu  CImg.hh
+DEPS=activation.h  conv.h  cppnn.h  error.h  image_utils.h  layer.h  mat.h  misc.h  tensor.h  test_conv.cu  test.cu  CImg.hh
 
 # dummy
 all: format test test_conv cuda
@@ -9,16 +9,16 @@ format: $(DEPS)
 	@clang-format-3.8 -i *.h *.cu
 
 test: $(DEPS)
-	@nvcc --std=c++11 $@.cu -o $@
+	@nvcc --std=c++11 $@.cu -o $@ -g
 
 test_conv: $(DEPS)
-	@nvcc --std=c++11 $@.cu -o $@ -lpthread -lX11 -w
+	@nvcc --std=c++11 $@.cu -o $@ -lpthread -lX11 -w -g
 
 test_cuda: $(DEPS)
-	@nvcc --std=c++11 test.cu -o $@ -w -D CUDA
+	@nvcc --std=c++11 test.cu -o $@ -w -D CUDA -g
 
 test_conv_cuda: $(DEPS)
-	@nvcc --std=c++11 test_conv.cu -o $@ -lpthread -lX11 -w -D CUDA
+	@nvcc --std=c++11 test_conv.cu -o $@ -lpthread -lX11 -w -D CUDA -g
 
 clean:
 	rm -f test
