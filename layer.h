@@ -1,8 +1,8 @@
 #pragma once
 
 #include <random>
+#include "tensor.h"
 #include "mat.h"
-#include "mat-cuda.h"
 
 class Layer
 {
@@ -11,21 +11,22 @@ public:
     virtual void forward() = 0;
     virtual void update(float lr) = 0;
     virtual void backprop() = 0;
+    virtual void cuda() = 0;
 
     // add more common methods and members as and when required
-
-    float *in_matrix;
-    float *out_matrix;
-    float *dc_dout;
-    float *dc_din;
+    Tensor *in_matrix = NULL;
+    Tensor *out_matrix = NULL;
+    Tensor *dc_dout = NULL;
+    Tensor *dc_din = NULL;
     int outputs;
     int inputs;
+    bool is_cuda = false;
 
     virtual ~Layer()
     {
         // TODO : mostly can be reused!
-        delete[] out_matrix;
-        delete[] dc_dout;
+        DELETE_NULL(out_matrix);
+        DELETE_NULL(dc_dout);
     }
 };
 
@@ -33,16 +34,29 @@ class Dense : public Layer
 {
 
 public:
-    float *wt_matrix; // input x output
-    float *bias;      // 1 x output
-    float *dc_dw;     // input x output
-    float *dc_dbias;  // 1 x output
+    Tensor *wt_matrix = NULL; // input x output
+    Tensor *bias = NULL;      // 1 x output
+    Tensor *dc_dw = NULL;     // input x output
+    Tensor *dc_dbias = NULL;  // 1 x output
+
+    void cuda()
+    {
+        in_matrix->cuda();
+        out_matrix->cuda();
+        dc_dout->cuda();
+        dc_din->cuda();
+        wt_matrix->cuda();
+        bias->cuda();
+        dc_dw->cuda();
+        dc_dbias->cuda();
+        is_cuda = true;
+    }
 
     Dense(int outs)
     {
         outputs = outs;
-        out_matrix = new float[outs];
-        dc_dout = new float[outs];
+        out_matrix = new Tensor(outs);
+        dc_dout = new Tensor(outs);
     }
 
     void initialize()
@@ -50,47 +64,42 @@ public:
         std::default_random_engine generator;
         std::normal_distribution<double> distribution(0.0, 0.001);
 
-        wt_matrix = new float[inputs * outputs];
-        bias = new float[outputs];
+        wt_matrix = new Tensor(inputs, outputs);
+        bias = new Tensor(outputs);
 
         for (int i = 0; i < inputs * outputs; i++)
-            wt_matrix[i] = distribution(generator);
-        for (int i = 0; i < outputs; i++)
-            bias[i] = 0.0;
+            wt_matrix->data[i] = distribution(generator);
+        bias->fill_(0.);
 
-        dc_dw = new float[inputs * outputs];
-        dc_dbias = new float[outputs];
+        dc_dw = new Tensor(inputs, outputs);
+        dc_dbias = new Tensor(outputs);
     }
 
     void forward()
     {
-        mat_mul(in_matrix, wt_matrix, out_matrix, 1, inputs, outputs);
-
-        for (int i = 0; i < outputs; i++)
-            out_matrix[i] += bias[i];
+        mat_mul(*in_matrix, *wt_matrix, *out_matrix, 1, inputs, outputs);
+        out_matrix->add_(*bias);
     }
 
     void backprop()
     {
-        mat_mul(in_matrix, dc_dout, dc_dw, inputs, 1, outputs, true, false);
-        mat_mul(dc_dout, wt_matrix, dc_din, 1, outputs, inputs, false, true);
-        memcpy(dc_dbias, dc_dout, outputs * sizeof(float));
+        mat_mul(*in_matrix, *dc_dout, *dc_dw, inputs, 1, outputs, true, false);
+        mat_mul(*dc_dout, *wt_matrix, *dc_din, 1, outputs, inputs, false, true);
+        dc_dbias->copy_(*dc_dout);
     }
 
     void update(float lr)
     {
-        for (int i = 0; i < inputs * outputs; i++)
-            wt_matrix[i] -= lr * dc_dw[i];
-        for (int i = 0; i < outputs; i++)
-            bias[i] -= lr * dc_dbias[i];
+        wt_matrix->add_(*dc_dw, -lr);
+        bias->add_(*dc_dbias, -lr);
     }
 
     ~Dense()
     {
-        delete[] wt_matrix;
-        delete[] bias;
-        delete[] dc_dw;
-        delete[] dc_dbias;
+        DELETE_NULL(wt_matrix);
+        DELETE_NULL(bias);
+        DELETE_NULL(dc_dw);
+        DELETE_NULL(dc_dbias);
     }
 };
 
@@ -101,8 +110,17 @@ public:
     {
         inputs = -1;
         outputs = outs;
-        out_matrix = new float[outs];
-        dc_dout = new float[outs];
+        out_matrix = new Tensor(outs);
+        dc_dout = new Tensor(outs);
+    }
+
+    void cuda()
+    {
+        // in_matrix->cuda();
+        out_matrix->cuda();
+        dc_dout->cuda();
+        // dc_din->cuda();
+        is_cuda = true;
     }
 
     void initialize()

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <sys/time.h>
 
 #include "cppnn.h"
 #include "activation.h"
@@ -10,6 +11,10 @@ using namespace std;
 
 int main(int argc, char const *argv[])
 {
+    struct timeval start_time, end_time;
+    float time_in_ms;
+    gettimeofday(&start_time, NULL);
+
     NN nn(784);
     nn.add_layer(new Dense(800));
     nn.add_layer(new Activation(Activations::SIGMOID, 800));
@@ -29,6 +34,8 @@ int main(int argc, char const *argv[])
         train_x[i] = new float[784];
         train_y[i] = new float[10];
     }
+
+    cout << "Reading data..." << endl;
 
     std::string line;
     int curr_line = 0;
@@ -68,9 +75,25 @@ int main(int argc, char const *argv[])
     vector<float *> train_y_new(first, mid);
     vector<float *> train_y_valid(mid, last);
 
+    cout << "Adding train/test data..." << endl;
+
     nn.add_training_data(train_x, train_y);
     nn.add_validation_data(train_x, train_y);
-    nn.train(1000);
+
+#ifdef CUDA
+    cout << "Moving all data to CUDA..." << endl;
+    nn.cuda();
+#endif
+
+    gettimeofday(&end_time, NULL);
+    cout << "Training..." << endl;
+    time_in_ms = (end_time.tv_sec - start_time.tv_sec) * 1000
+                 + 1.0 * (end_time.tv_usec - start_time.tv_usec) / 1000;
+
+    printf("Time taken in preprocessing = %f ms\n", time_in_ms);
+    std::cout << std::endl;
+
+    nn.train(10);
 
     for (int i = 0; i < train_size; i++) {
         delete train_x[i];

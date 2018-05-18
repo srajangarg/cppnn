@@ -16,14 +16,15 @@ public:
     bool training_data_added = false;
     bool validation_data_added = false;
     bool nn_initialized = false;
+    bool is_cuda = false;
 
-    float **train_x, **train_y;
+    std::vector<Tensor *> train_x, train_y;
     int num_train;
-    float **valid_x, **valid_y;
+    std::vector<Tensor *> valid_x, valid_y;
     int num_valid;
 
     float learning_rate;
-    std::function<float(float *, float *, float *, int)> e;
+    std::function<float(Tensor &, Tensor &, Tensor &, int)> e;
 
     // each data point has `inputs` number of floats
     NN(int ins)
@@ -31,6 +32,23 @@ public:
         inputs = ins;
         layers.push_back(new Input(ins));
         outputs = ins;
+    }
+
+    void cuda()
+    {
+        if (!is_cuda) {
+            for (auto layer : layers)
+                layer->cuda();
+            for (auto it : train_x)
+                it->cuda();
+            for (auto it : train_y)
+                it->cuda();
+            for (auto it : valid_x)
+                it->cuda();
+            // for(auto it:valid_y)
+            //     it->cuda();
+            is_cuda = true;
+        }
     }
 
     void add_layer(Layer *new_layer)
@@ -50,8 +68,13 @@ public:
         // each element of t_y should be a float array having `last_layer->outputs` elements in it
         assert(t_x.size() == t_y.size());
 
-        train_x = t_x.data();
-        train_y = t_y.data();
+        int x_size = layers[0]->outputs;
+        int y_size = layers.back()->outputs;
+
+        for (auto x : t_x)
+            train_x.push_back(new Tensor(x, x_size));
+        for (auto y : t_y)
+            train_y.push_back(new Tensor(y, y_size));
         num_train = t_x.size();
 
         training_data_added = true;
@@ -63,8 +86,13 @@ public:
         // each element of v_y should be a float array having `lasv_layer->outputs` elements in it
         assert(v_x.size() == v_y.size());
 
-        valid_x = v_x.data();
-        valid_y = v_y.data();
+        int x_size = layers[0]->outputs;
+        int y_size = layers.back()->outputs;
+
+        for (auto x : v_x)
+            valid_x.push_back(new Tensor(x, x_size));
+        for (auto y : v_y)
+            valid_y.push_back(new Tensor(y, y_size));
         num_valid = v_x.size();
 
         validation_data_added = true;
@@ -81,23 +109,21 @@ public:
         nn_initialized = true;
     }
 
-    void forward(float *input_data)
+    void forward(Tensor &input_data)
     {
         auto first_layer = layers[0];
-        memcpy(first_layer->out_matrix, input_data, first_layer->outputs * sizeof(float));
+        first_layer->out_matrix->copy_(input_data);
 
         for (auto &l : layers)
             l->forward();
     }
 
-    float backprop(float *target_data)
+    float backprop(Tensor &target_data)
     {
         auto last_layer = layers[layers.size() - 1];
-        float err = e(last_layer->out_matrix, target_data, last_layer->dc_dout, outputs);
-
+        float err = e(*(last_layer->out_matrix), target_data, *(last_layer->dc_dout), outputs);
         for (int i = layers.size() - 1; i >= 0; i--)
             layers[i]->backprop();
-
         return err;
     }
 
@@ -109,22 +135,14 @@ public:
             int correct_pred = 0;
             for (int i = 0; i < num_valid; i++) {
                 int pred_index, correct_index = 0;
-                forward(valid_x[i]);
+                forward(*valid_x[i]);
                 for (int j = 0; j < outputs; j++) {
-                    if (valid_y[i][j] == 1) {
+                    if (valid_y[i]->at(j) == 1) {
                         correct_index = j;
                         break;
                     }
                 }
-                auto pred_values = layers[layers.size() - 1]->out_matrix;
-                pred_index = 0;
-                float max_pred = pred_values[0];
-                for (int j = 0; j < outputs; j++) {
-                    if (pred_values[j] > max_pred) {
-                        max_pred = pred_values[j];
-                        pred_index = j;
-                    }
-                }
+                pred_index = (layers[layers.size() - 1]->out_matrix)->argmax();
                 if (pred_index == correct_index)
                     correct_pred++;
             }
@@ -147,11 +165,15 @@ public:
 
         auto last_layer = layers[layers.size() - 1];
 
-        for (int i = 0; i < epochs; i++) {
+        struct timeval start_time, end_time;
+        float time_in_ms;
+        gettimeofday(&start_time, NULL);
 
+        for (int i = 0; i < epochs; i++) {
             float sum = 0;
             for (int j = 0; j < num_train; j++) {
-                forward(train_x[j]);
+                // std::cout << "forward" << std::endl;
+                forward(*train_x[j]);
 
                 // printf("predicted ");
                 // for (int i = 0; i < outputs; i++) {
@@ -164,13 +186,20 @@ public:
                 // printf("\n");
 
                 // printf("error: %.4f\n", backprop(train_y[j]));
-                sum += backprop(train_y[j]);
+                // std::cout << "backprop" << std::endl;
+                sum += backprop(*train_y[j]);
 
+                // std::cout << "update" << std::endl;
                 for (auto &l : layers)
                     l->update(learning_rate);
             }
-            printf("error %.4f\n", sum / num_train);
             validate();
+            printf("error %.4f\n", sum / num_train);
+            gettimeofday(&end_time, NULL);
+            time_in_ms = (end_time.tv_sec - start_time.tv_sec) * 1000
+                         + 1.0 * (end_time.tv_usec - start_time.tv_usec) / 1000;
+            printf("Time taken in epoch %d = %f ms\n", i, time_in_ms);
+            std::cout << std::endl;
         }
     }
 
