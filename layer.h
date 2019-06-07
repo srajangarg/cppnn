@@ -1,6 +1,10 @@
 #pragma once
 
+#ifdef CUDA
+#include "mat-cuda.h"
+#else
 #include "mat.h"
+#endif
 
 class Layer
 {
